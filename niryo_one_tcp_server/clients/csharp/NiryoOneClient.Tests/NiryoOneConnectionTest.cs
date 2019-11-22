@@ -37,20 +37,20 @@ namespace NiryoOneClient.Tests
     {
         private class MyTextReader : TextReader {
             public string[] Values = null;
-            private int _i;
+            public int ReadInvokeCounter;
 
             public MyTextReader()
             {
-                _i = 0;
+                ReadInvokeCounter = 0;
             }
 
 #pragma warning disable 1998 
             public override async ValueTask<int> ReadAsync(Memory<char> buffer, CancellationToken cancellationToken = default(CancellationToken))
             {
-                if (_i >= Values.Length)
+                if (ReadInvokeCounter >= Values.Length)
                     throw new SocketException();
-                var value = Values[_i];
-                _i++;
+                var value = Values[ReadInvokeCounter];
+                ReadInvokeCounter++;
                 new Span<char>(value.ToArray()).CopyTo(buffer.Span);
                 return value.Length;
             }
@@ -66,12 +66,51 @@ namespace NiryoOneClient.Tests
         {
             _streamReader = new MyTextReader();
             _streamWriter = Substitute.For<System.IO.TextWriter>();
-            _connection = new NiryoOneConnection(_streamReader, _streamWriter);
+            _connection = new NiryoOneConnection(_streamReader, _streamWriter, 0);
         }
 
         private void SetupReadAsyncReturn_(params string[] values)
         {
             _streamReader.Values = values;
+        }
+
+        [DataTestMethod]
+        [DataRow(0, DisplayName = "No retries")]
+        [DataRow(1, DisplayName = "One retry")]
+        [DataRow(5, DisplayName = "Five retries")]
+        public async Task RetryCommand_WhenRobotIsBusy_ShouldRetryNumRetriesTimesAndThenThrow(int numRetries)
+        {
+            _connection = new NiryoOneConnection(_streamReader, _streamWriter, numRetries);
+            SetupReadAsyncReturn_(Enumerable.Repeat("CALIBRATE:KO,Robot is busy right now, command ignored.", numRetries + 1).ToArray());
+            await Assert.ThrowsExceptionAsync<NiryoOneException>(async () => { await _connection.Calibrate(CalibrateMode.AUTO); });
+            Assert.AreEqual(numRetries + 1, _streamReader.ReadInvokeCounter);
+            await _streamWriter.Received(numRetries + 1).WriteLineAsync(Arg.Any<string>());
+        }
+
+        [DataTestMethod]
+        [DataRow(0, DisplayName = "No retries")]
+        [DataRow(1, DisplayName = "One retry")]
+        [DataRow(5, DisplayName = "Five retries")]
+        public async Task RetryCommand_WhenRobotIsBusy_ShouldRetryUntilSuccess(int numRetries)
+        {
+            _connection = new NiryoOneConnection(_streamReader, _streamWriter, numRetries);
+            SetupReadAsyncReturn_(Enumerable.Repeat("CALIBRATE:KO,Robot is busy right now, command ignored.", numRetries).Concat(new []{ "CALIBRATE:OK"}).ToArray());
+            await _connection.Calibrate(CalibrateMode.AUTO);
+            Assert.AreEqual(numRetries + 1, _streamReader.ReadInvokeCounter);
+            await _streamWriter.Received(numRetries + 1).WriteLineAsync(Arg.Any<string>());
+        }
+        
+        [DataTestMethod]
+        [DataRow(0, DisplayName = "No retries")]
+        [DataRow(1, DisplayName = "One retry")]
+        [DataRow(5, DisplayName = "Five retries")]
+        public async Task RetryCommand_WhenRobotIsBusy_ShouldRetryUntilSuccessAndReturnResult(int numRetries)
+        {
+            _connection = new NiryoOneConnection(_streamReader, _streamWriter, numRetries);
+            SetupReadAsyncReturn_(Enumerable.Repeat("GET_LEARNING_MODE:KO,Robot is busy right now, command ignored.", numRetries).Concat(new []{ "GET_LEARNING_MODE:OK,TRUE" }).ToArray());
+            Assert.AreEqual(true, await _connection.GetLearningMode());
+            Assert.AreEqual(numRetries + 1, _streamReader.ReadInvokeCounter);
+            await _streamWriter.Received(numRetries + 1).WriteLineAsync(Arg.Any<string>());
         }
 
         [TestMethod]

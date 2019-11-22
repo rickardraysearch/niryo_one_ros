@@ -6,7 +6,7 @@
 
   <PropertyGroup>
     <PackageId>NiryoOneClient</PackageId>
-    <Version>0.1.0</Version>
+    <Version>0.1.1</Version>
     <Authors>rickardraysearch</Authors>
     <Company>Niryo</Company>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
