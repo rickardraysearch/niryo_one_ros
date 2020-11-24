@@ -33,7 +33,7 @@ namespace Examples
     {
         public static async Task Main(string[] args)
         {
-            string server = "10.10.10.10";
+            string server = "niryo-desktop";
 
             if (args.Length == 1 || args.Length == 7)
             {
@@ -64,10 +64,10 @@ namespace Examples
                     await niryo.MovePose(initialPose);
                 }
 
-                var digitalIOPins = await niryo.GetDigitalIOState();
+                //var digitalIOPins = await niryo.GetDigitalIOState();
 
-                foreach (var pin in digitalIOPins)
-                    Console.WriteLine($"Pin: {pin.PinId}, name: {pin.Name}, mode: {pin.Mode}, state: {pin.State}");
+                //foreach (var pin in digitalIOPins)
+                //    Console.WriteLine($"Pin: {pin.PinId}, name: {pin.Name}, mode: {pin.Mode}, state: {pin.State}");
 
                 await niryo.SetLearningMode(true);
             }

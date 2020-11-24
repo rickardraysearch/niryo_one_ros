@@ -22,6 +22,7 @@
  */
 
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -87,7 +88,7 @@ namespace NiryoOneClient
         /// <returns>A parsed object</returns>
         public static PoseObject ParsePoseObject(string s)
         {
-            return new PoseObject(s.Split(",").Select(x => float.Parse(x, CultureInfo.InvariantCulture)).ToArray());
+            return new PoseObject(s.Split(',').Select(x => float.Parse(x, CultureInfo.InvariantCulture)).ToArray());
         }
 
 
@@ -98,7 +99,7 @@ namespace NiryoOneClient
         /// <returns>A parsed object</returns> 
         public static RobotJoints ParseRobotJoints(string s)
         {
-            return new RobotJoints(s.Split(",").Select(x => float.Parse(x, CultureInfo.InvariantCulture)).ToArray());
+            return new RobotJoints(s.Split(',').Select(x => float.Parse(x, CultureInfo.InvariantCulture)).ToArray());
         }
 
 
@@ -109,25 +110,25 @@ namespace NiryoOneClient
         /// <returns>A parsed object</returns>
         public static DigitalPinObject ParseDigitalPinObject(string s)
         {
-            if (!s.StartsWith('[') || !s.EndsWith(']'))
+            if (!s.StartsWith("[") || !s.EndsWith("]"))
                 throw new ArgumentException();
 
-            var ss = s.Substring(1, s.Length - 2).Split(", ");
+            var ss = s.Substring(1, s.Length - 2).Split(',').ToArray();
 
             return new DigitalPinObject
             {
-                PinId = int.Parse(ss[0]),
+                PinId = int.Parse(ss[0].Trim()),
                 Name = ss[1].Trim().Substring(1, ss[1].Length - 2),
-                Mode = (PinMode)int.Parse(ss[2]),
-                State = (DigitalState)int.Parse(ss[3])
+                Mode = (PinMode)int.Parse(ss[2].Trim()),
+                State = (DigitalState)int.Parse(ss[3].Trim())
             };
         }
         
         private static string Strip_(string s, char prefix, char suffix)
         {
-            if (!s.StartsWith(prefix))
+            if (!s.StartsWith(prefix.ToString()))
                 throw new ArgumentException();
-            if (!s.EndsWith(suffix))
+            if (!s.EndsWith(suffix.ToString()))
                 throw new ArgumentException();
             return s.Substring(1, s.Length - 2);
         }
@@ -135,13 +136,27 @@ namespace NiryoOneClient
         private static string[] ParseStrings_(string s)
         {
             var regex = new Regex(@"'[^']*'");
-            return regex.Matches(s).Select(m => Strip_(m.Value, '\'', '\'')).ToArray();
+            var ma = regex.Matches(s);
+            var matches = new List<Match>();
+            foreach (Match match in ma)
+            {
+              matches.Add(match);
+            }
+            return matches.Select(m => Strip_(m.Value, '\'', '\'')).ToArray();
         }
 
-        private static T[] ParseNumbers_<T>(string s, Func<string, T> parser)
+
+
+    private static T[] ParseNumbers_<T>(string s, Func<string, T> parser)
         {
             var regex = new Regex(@"[0-9]+(\.[0-9]*)?");
-            return regex.Matches(s).Select(m => parser(m.Value)).ToArray();
+            var ma = regex.Matches(s);
+            var matches = new List<Match>();
+            foreach (Match match in ma)
+            {
+              matches.Add(match);
+            }
+            return matches.Select(m => parser(m.Value)).ToArray();
         }
     }
 }

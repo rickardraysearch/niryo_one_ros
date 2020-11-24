@@ -22,6 +22,7 @@
  */
 
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -67,9 +68,9 @@ namespace NiryoOneClient
         internal async Task<string> ReadAsync()
         {
             const int blockSize = 512;
-            Memory<char> memory = new Memory<char>(new char[blockSize]);
-            var count = await _textReader.ReadAsync(memory);
-            return new string(memory.Span.Slice(0, count).ToArray());
+            var memory = new char[blockSize];
+            var count = await _textReader.ReadAsync(memory, 0,  memory.Length);
+            return new string(memory.Take(count).ToArray());
         }
 
         /// <summary>
@@ -111,11 +112,11 @@ namespace NiryoOneClient
             var result = match.Value.Trim();
             _stringBuf = s.Substring(match.Index + match.Length).TrimStart();
 
-            var colonSplit = result.Split(':', 2);
+            var colonSplit = result.Split(new []{':'}, 2).ToArray();
             var cmd = colonSplit[0];
             if (cmd != commandType)
                 throw new NiryoOneException("Wrong command response received.");
-            var commaSplit2 = colonSplit[1].Split(',', 2);
+            var commaSplit2 = colonSplit[1].Split(new []{','}, 2).ToArray();
             var status = commaSplit2[0];
             if (status != "OK")
                 throw new NiryoOneException(commaSplit2[1]);
@@ -152,7 +153,8 @@ namespace NiryoOneClient
         /// </summary>
         public async Task MoveJoints(RobotJoints joints)
         {
-            await SendCommandAsync("MOVE_JOINTS", string.Join(',', joints.Select(x => x.ToString(CultureInfo.InvariantCulture))));
+          
+            await SendCommandAsync("MOVE_JOINTS", string.Join(",", joints.Select(x => x.ToString(CultureInfo.InvariantCulture))));
             await ReceiveAnswerAsync("MOVE_JOINTS");
         }
 
@@ -162,7 +164,7 @@ namespace NiryoOneClient
         /// </summary>
         public async Task MovePose(PoseObject pose)
         {
-            await SendCommandAsync("MOVE_POSE", string.Join(',', pose.Select(x => x.ToString(CultureInfo.InvariantCulture))));
+            await SendCommandAsync("MOVE_POSE", string.Join(",", pose.Select(x => x.ToString(CultureInfo.InvariantCulture))));
             await ReceiveAnswerAsync("MOVE_POSE");
         }
 
@@ -358,8 +360,12 @@ namespace NiryoOneClient
             var state = await ReceiveAnswerAsync("GET_DIGITAL_IO_STATE", @"(, *\[[^]]*\]){8}");
 
             var regex = new Regex("\\[[0-9]+, '[^']*', [0-9]+, [0-9+]\\]");
-            var matches = regex.Matches(state);
-
+            var ma = regex.Matches(state);
+            var matches = new List<Match>();
+            foreach (Match match in ma)
+            {
+              matches.Add(match);
+            }
             return matches.Select(m => ParserUtils.ParseDigitalPinObject(m.Value)).ToArray();
         }
     }
